@@ -141,6 +141,57 @@ begin
 end;
 $$;
 
+-- Only a group's creator can rename it, add friends, or remove members.
+create or replace function public.update_group_with_members(target_group uuid, group_name text, member_ids uuid[] default '{}')
+returns void
+language plpgsql
+security definer set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  member uuid;
+begin
+  if me is null then raise exception 'Not authenticated'; end if;
+  if not exists (select 1 from public.groups where id = target_group and created_by = me) then
+    raise exception 'Only the group creator can edit this group';
+  end if;
+
+  update public.groups set name = trim(group_name) where id = target_group;
+  delete from public.group_members where group_id = target_group and user_id <> me;
+
+  foreach member in array coalesce(member_ids, '{}'::uuid[]) loop
+    if member <> me and exists (
+      select 1 from public.friendships where user_id = me and friend_id = member
+    ) then
+      insert into public.group_members(group_id, user_id) values (target_group, member) on conflict do nothing;
+    end if;
+  end loop;
+
+  delete from public.movie_selections ms
+  where ms.group_id = target_group
+    and not exists (
+      select 1 from public.group_members gm
+      where gm.group_id = ms.group_id and gm.user_id = ms.user_id
+    );
+end;
+$$;
+
+create or replace function public.delete_group(target_group uuid)
+returns void
+language plpgsql
+security definer set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+begin
+  if me is null then raise exception 'Not authenticated'; end if;
+  if not exists (select 1 from public.groups where id = target_group and created_by = me) then
+    raise exception 'Only the group creator can delete this group';
+  end if;
+  delete from public.groups where id = target_group;
+end;
+$$;
+
 create or replace function public.get_my_groups()
 returns table(
   group_id uuid,
