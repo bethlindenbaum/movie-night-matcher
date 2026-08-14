@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MovieMatch</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <section id="auth-view" class="auth-view">
+    <div class="auth-backdrop"></div>
+    <div class="auth-card">
+      <div class="brand">MOVIEMATCH</div>
+      <h1>Find something everyone wants to watch.</h1>
+      <p class="muted">Pick movies you like, compare with friends, and let MovieMatch find the best group choice.</p>
+      <div id="config-warning" class="config-warning hidden"></div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="login">Log in</button>
+        <button class="auth-tab" data-auth-tab="signup">Create account</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <label>Email<input id="login-email" type="email" autocomplete="email" required></label>
+        <label>Password<input id="login-password" type="password" autocomplete="current-password" required></label>
+        <button class="primary-button" type="submit">Log in</button>
+        <p class="form-message" id="login-message"></p>
+      </form>
+      <form id="signup-form" class="auth-form hidden">
+        <label>Username<input id="signup-username" autocomplete="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" title="Use letters, numbers, and underscores only" required></label>
+        <label>Email<input id="signup-email" type="email" autocomplete="email" required></label>
+        <label>Password<input id="signup-password" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="primary-button" type="submit">Create account</button>
+        <p class="form-message" id="signup-message"></p>
+      </form>
+    </div>
+  </section>
+
+  <div id="app-view" class="app-view hidden">
+    <header class="topbar">
+      <a class="brand brand-small" href="#" id="home-link">MOVIEMATCH</a>
+      <nav class="desktop-nav">
+        <button class="nav-link active" data-section="home">Home</button>
+        <button class="nav-link" data-section="my-list">My List</button>
+        <button class="nav-link" data-section="groups">Groups</button>
+      </nav>
+      <div class="topbar-actions">
+        <button class="icon-button" id="refresh-button" title="Refresh movies">Refresh</button>
+        <button class="icon-button" id="friends-button">Friends</button>
+        <button class="profile-button" id="profile-button"><span id="profile-initial">U</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section id="home-section" class="page-section">
+        <section id="hero" class="hero">
+          <div class="hero-shade"></div>
+          <div class="hero-content">
+            <div class="eyebrow">Tonight's featured pick</div>
+            <h1 id="hero-title">Loading movies…</h1>
+            <p id="hero-description"></p>
+            <div class="hero-meta" id="hero-meta"></div>
+            <div class="hero-actions">
+              <button class="primary-button" id="hero-details-button">View details</button>
+              <button class="secondary-button" id="hero-select-button">Select for group</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="group-strip">
+          <div>
+            <div class="eyebrow">Current group</div>
+            <div class="group-strip-main">
+              <select id="group-select"></select>
+              <button class="small-button" id="create-group-button">+ New group</button>
+            </div>
+          </div>
+          <div class="group-summary">
+            <div id="group-members" class="avatar-stack"></div>
+            <div>
+              <div id="group-member-text" class="summary-title">Just you</div>
+              <div id="group-service-text" class="muted small"></div>
+            </div>
+          </div>
+          <button class="match-button" id="find-match-button"><span>Find our match</span><small id="match-button-caption">Select movies first</small></button>
+        </section>
+        <div id="catalog-status" class="catalog-status hidden">Loading movies…</div>
+        <div id="movie-rows" class="movie-rows"></div>
+      </section>
+
+      <section id="my-list-section" class="page-section content-page hidden">
+        <div class="page-heading"><div><div class="eyebrow">Saved for later</div><h1>My List</h1></div></div>
+        <div id="my-list-grid" class="poster-grid"></div>
+      </section>
+
+      <section id="groups-section" class="page-section content-page hidden">
+        <div class="page-heading"><div><div class="eyebrow">Watch together</div><h1>Your groups</h1></div><button class="primary-button" id="create-group-button-2">Create group</button></div>
+        <div id="groups-grid" class="groups-grid"></div>
+      </section>
+    </main>
+    <footer class="data-footer">Movie metadata: TMDB. Streaming availability: JustWatch via TMDB.</footer>
+  </div>
+
+  <div id="movie-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close-modal="movie-modal"></div>
+    <article class="movie-modal-card">
+      <button class="close-button" data-close-modal="movie-modal">×</button>
+      <div id="movie-modal-hero" class="movie-modal-hero"></div>
+      <div class="movie-modal-content">
+        <div class="movie-modal-title-row"><div><h2 id="modal-title"></h2><div id="modal-meta" class="movie-meta-line"></div></div><div id="modal-service" class="service-pill"></div></div>
+        <p id="modal-description" class="movie-description"></p>
+        <div class="modal-actions"><button id="modal-select-button" class="primary-button">Select for group</button><button id="modal-list-button" class="secondary-button">+ My List</button></div>
+        <div class="detail-grid">
+          <div><span>Genres</span><strong id="modal-genres"></strong></div>
+          <div><span>Cast</span><strong id="modal-cast"></strong></div>
+          <div><span>Why it fits</span><strong id="modal-fit"></strong></div>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <aside id="profile-drawer" class="drawer hidden">
+    <div class="drawer-backdrop" data-close-drawer="profile-drawer"></div>
+    <div class="drawer-panel">
+      <div class="drawer-header"><div><div class="eyebrow">Account</div><h2 id="profile-username"></h2></div><button class="close-button" data-close-drawer="profile-drawer">×</button></div>
+      <section class="settings-block"><h3>Streaming services</h3><p class="muted small">These filter the catalog for you and your group.</p><div id="service-checkboxes" class="check-grid"></div></section>
+      <section class="settings-block"><h3>Movie preferences</h3><p class="muted small">These rank group recommendations.</p><div id="genre-checkboxes" class="check-grid"></div></section>
+      <button id="save-profile-button" class="primary-button full-width">Save preferences</button>
+      <button id="logout-button" class="text-button danger">Log out</button>
+    </div>
+  </aside>
+
+  <aside id="friends-drawer" class="drawer hidden">
+    <div class="drawer-backdrop" data-close-drawer="friends-drawer"></div>
+    <div class="drawer-panel">
+      <div class="drawer-header"><div><div class="eyebrow">People</div><h2>Friends</h2></div><button class="close-button" data-close-drawer="friends-drawer">×</button></div>
+      <form id="add-friend-form" class="inline-form"><input id="friend-username" placeholder="Friend's username" required><button class="small-button" type="submit">Add</button></form>
+      <p id="friend-message" class="form-message"></p>
+      <div id="friends-list" class="friends-list"></div>
+    </div>
+  </aside>
+
+  <div id="group-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close-modal="group-modal"></div>
+    <div class="simple-modal-card">
+      <button class="close-button" data-close-modal="group-modal">×</button><div class="eyebrow">New movie night</div><h2>Create a group</h2>
+      <form id="create-group-form"><label>Group name<input id="group-name" placeholder="Friday Movie Night" required></label><div class="field-label">Invite friends</div><div id="group-friend-options" class="check-list"></div><button class="primary-button full-width" type="submit">Create group</button></form>
+    </div>
+  </div>
+
+  <div id="match-modal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-backdrop" data-close-modal="match-modal"></div><div class="match-card"><button class="close-button" data-close-modal="match-modal">×</button><div class="eyebrow">MovieMatch result</div><div id="match-result-content"></div></div></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/movie-api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
