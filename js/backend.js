@@ -103,6 +103,20 @@ async function createBackendGroup(name, memberIds) {
   return data;
 }
 
+async function updateBackendGroup(groupId, name, memberIds) {
+  const { error } = await db.rpc("update_group_with_members", {
+    target_group: groupId,
+    group_name: name.trim(),
+    member_ids: memberIds
+  });
+  if (error) throw error;
+}
+
+async function deleteBackendGroup(groupId) {
+  const { error } = await db.rpc("delete_group", { target_group: groupId });
+  if (error) throw error;
+}
+
 async function listMyMovieIds() {
   const { data, error } = await db.from("my_list").select("movie_id").order("created_at", { ascending: false });
   if (error) throw error;

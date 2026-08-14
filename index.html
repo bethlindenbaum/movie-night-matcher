@@ -148,8 +148,8 @@
   <div id="group-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-backdrop" data-close-modal="group-modal"></div>
     <div class="simple-modal-card">
-      <button class="close-button" data-close-modal="group-modal">×</button><div class="eyebrow">New movie night</div><h2>Create a group</h2>
-      <form id="create-group-form"><label>Group name<input id="group-name" placeholder="Friday Movie Night" required></label><div class="field-label">Invite friends</div><div id="group-friend-options" class="check-list"></div><button class="primary-button full-width" type="submit">Create group</button></form>
+      <button class="close-button" data-close-modal="group-modal">×</button><div class="eyebrow" id="group-modal-eyebrow">New movie night</div><h2 id="group-modal-title">Create a group</h2>
+      <form id="create-group-form"><label>Group name<input id="group-name" placeholder="Friday Movie Night" maxlength="80" required></label><div class="field-label">Members</div><div id="group-friend-options" class="check-list"></div><div class="group-form-actions"><button id="delete-group-button" class="danger-button hidden" type="button">Delete group</button><button id="group-submit-button" class="primary-button" type="submit">Create group</button></div></form>
     </div>
   </div>
 

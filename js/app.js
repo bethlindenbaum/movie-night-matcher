@@ -4,6 +4,7 @@ const state = {
   friends: [],
   groups: [],
   currentGroupId: null,
+  editingGroupId: null,
   myListIds: [],
   catalog: null,
   movies: new Map(),
@@ -330,20 +331,23 @@ function renderFriends() {
   $("#friends-list").innerHTML = state.friends.length ? state.friends.map(friend => `<div class="friend-row"><div class="friend-row-main"><div class="avatar">${initials(friend.username)}</div><div><strong>${escapeHTML(friend.username)}</strong><div class="muted small">${escapeHTML((friend.streaming_services || []).join(", ") || "No services saved")}</div></div></div></div>`).join("") : `<div class="empty-state">Add a friend by username to create a group.</div>`;
 }
 
-function renderGroupFriendOptions() {
-  $("#group-friend-options").innerHTML = state.friends.length ? state.friends.map(friend => `<label class="check-option"><input type="checkbox" name="group-friend" value="${friend.id}"><span>${escapeHTML(friend.username)}</span></label>`).join("") : `<div class="empty-state">Add friends first.</div>`;
+function renderGroupFriendOptions(selectedIds = []) {
+  const selected = new Set(selectedIds);
+  $("#group-friend-options").innerHTML = state.friends.length ? state.friends.map(friend => `<label class="check-option"><input type="checkbox" name="group-friend" value="${friend.id}" ${selected.has(friend.id) ? "checked" : ""}><span>${escapeHTML(friend.username)}</span></label>`).join("") : `<div class="empty-state">Add friends first.</div>`;
 }
 
 function renderGroupsPage() {
   $("#groups-grid").innerHTML = state.groups.length ? state.groups.map(group => {
     const services = unique(group.members.flatMap(m => m.streaming_services || []));
     const selections = Object.values(group.selections || {}).reduce((sum, p) => sum + p.length, 0);
-    return `<article class="group-card"><div class="eyebrow">${group.members.length} members</div><h3>${escapeHTML(group.name)}</h3><div class="muted small">${escapeHTML(group.members.map(m => m.username).join(", "))}</div><div class="muted small" style="margin-top:8px;">${escapeHTML(services.join(", "))}</div><div class="group-card-footer"><span class="small">${selections} selections</span><button class="small-button use-group-button" data-group-id="${group.id}">Open group</button></div></article>`;
+    const canManage = group.createdBy === state.user.id;
+    return `<article class="group-card"><div class="eyebrow">${group.members.length} members</div><h3>${escapeHTML(group.name)}</h3><div class="muted small">${escapeHTML(group.members.map(m => m.username).join(", "))}</div><div class="muted small" style="margin-top:8px;">${escapeHTML(services.join(", "))}</div><div class="group-card-footer"><span class="small">${selections} selections</span><div class="group-card-actions">${canManage ? `<button class="small-button edit-group-button" data-group-id="${group.id}">Edit</button>` : ""}<button class="small-button use-group-button" data-group-id="${group.id}">Open group</button></div></div></article>`;
   }).join("") : `<div class="empty-state">You do not have any groups yet. Add friends, then create a movie-night group.</div>`;
 
   $$(".use-group-button").forEach(button => button.addEventListener("click", async () => {
     state.currentGroupId = button.dataset.groupId; subscribeToCurrentGroup(); renderAccountDependentUI(); showSection("home"); await loadCatalog();
   }));
+  $$(".edit-group-button").forEach(button => button.addEventListener("click", () => openEditGroupModal(button.dataset.groupId)));
 }
 
 async function renderMyList() {
@@ -440,15 +444,55 @@ $("#add-friend-form").addEventListener("submit", async event => {
   catch (error) { $("#friend-message").textContent = error.message; }
 });
 
-function openCreateGroupModal() { renderGroupFriendOptions(); $("#create-group-form").reset(); openModal("group-modal"); }
+function openCreateGroupModal() {
+  state.editingGroupId = null;
+  $("#create-group-form").reset();
+  $("#group-modal-eyebrow").textContent = "New movie night";
+  $("#group-modal-title").textContent = "Create a group";
+  $("#group-submit-button").textContent = "Create group";
+  $("#delete-group-button").classList.add("hidden");
+  renderGroupFriendOptions();
+  openModal("group-modal");
+}
+
+function openEditGroupModal(groupId) {
+  const group = state.groups.find(item => item.id === groupId);
+  if (!group || group.createdBy !== state.user.id) return;
+  state.editingGroupId = group.id;
+  $("#create-group-form").reset();
+  $("#group-modal-eyebrow").textContent = "Group settings";
+  $("#group-modal-title").textContent = "Edit group";
+  $("#group-submit-button").textContent = "Save changes";
+  $("#delete-group-button").classList.remove("hidden");
+  $("#group-name").value = group.name;
+  renderGroupFriendOptions(group.members.filter(member => member.id !== state.user.id).map(member => member.id));
+  openModal("group-modal");
+}
 $("#create-group-button").addEventListener("click", openCreateGroupModal);
 $("#create-group-button-2").addEventListener("click", openCreateGroupModal);
 $("#create-group-form").addEventListener("submit", async event => {
   event.preventDefault();
   try {
     const memberIds = $$("input[name='group-friend']:checked").map(i => i.value);
-    state.currentGroupId = await createBackendGroup($("#group-name").value, memberIds);
-    state.groups = await listGroups(); closeModal("group-modal"); subscribeToCurrentGroup(); renderAccountDependentUI(); showSection("home"); await loadCatalog(); showToast("Group created");
+    const editing = state.editingGroupId;
+    if (editing) await updateBackendGroup(editing, $("#group-name").value, memberIds);
+    else state.currentGroupId = await createBackendGroup($("#group-name").value, memberIds);
+    state.groups = await listGroups(); closeModal("group-modal"); state.editingGroupId = null; subscribeToCurrentGroup(); renderAccountDependentUI();
+    if (!editing) showSection("home");
+    await loadCatalog(); showToast(editing ? "Group updated" : "Group created");
+  } catch (error) { showToast(error.message); }
+});
+
+$("#delete-group-button").addEventListener("click", async () => {
+  const group = state.groups.find(item => item.id === state.editingGroupId);
+  if (!group || !window.confirm(`Delete “${group.name}”? This cannot be undone.`)) return;
+  try {
+    await deleteBackendGroup(group.id);
+    if (state.currentGroupId === group.id) state.currentGroupId = null;
+    state.editingGroupId = null;
+    state.groups = await listGroups();
+    if (!state.currentGroupId && state.groups.length) state.currentGroupId = state.groups[0].id;
+    closeModal("group-modal"); subscribeToCurrentGroup(); renderAccountDependentUI(); await loadCatalog(); showToast("Group deleted");
   } catch (error) { showToast(error.message); }
 });
 
@@ -459,7 +503,7 @@ $$("[data-close-modal]").forEach(el => el.addEventListener("click", () => closeM
 $$("[data-close-drawer]").forEach(el => el.addEventListener("click", () => closeDrawer(el.dataset.closeDrawer)));
 $$(".nav-link").forEach(button => button.addEventListener("click", () => showSection(button.dataset.section)));
 $("#home-link").addEventListener("click", event => { event.preventDefault(); showSection("home"); });
-document.addEventListener("keydown", event => { if (event.key === "Escape") { ["movie-modal","group-modal","match-modal"].forEach(closeModal); ["profile-drawer","friends-drawer"].forEach(closeDrawer); } });
+document.addEventListener("keydown", event => { if (event.key === "Escape") { ["movie-modal","group-modal","match-modal"].forEach(closeModal); state.editingGroupId = null; ["profile-drawer","friends-drawer"].forEach(closeDrawer); } });
 
 (async function start() {
   if (!initBackend()) {

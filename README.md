@@ -184,7 +184,7 @@ This MVP treats adding someone as an immediate mutual friendship. A future versi
 
 ### Groups
 
-`create_group_with_members` creates a group containing the current user and selected friends.
+`create_group_with_members` creates a group containing the current user and selected friends. Group creators can later rename the group, change its members, or delete it; these operations use the owner-checked `update_group_with_members` and `delete_group` functions.
 
 The browser loads group member profiles, which lets it calculate the union of everyone's streaming services and combine everyone's genre preferences.
 

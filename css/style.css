@@ -645,6 +645,32 @@ select:focus {
   margin-top: 18px;
 }
 
+.group-card-actions,
+.group-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.group-form-actions {
+  margin-top: 18px;
+  justify-content: space-between;
+}
+
+.group-form-actions .primary-button {
+  margin-left: auto;
+}
+
+.danger-button {
+  border: 1px solid rgba(255, 105, 120, .5);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #ff9aa5;
+  background: rgba(150, 25, 40, .18);
+  cursor: pointer;
+}
+
 /* ---------------- MODALS ---------------- */
 
 .modal,
