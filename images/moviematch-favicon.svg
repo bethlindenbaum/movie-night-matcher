@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>MovieMatch gradient M icon</title>
+  <defs>
+    <linearGradient id="m-gradient" x1="10" y1="14" x2="54" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f4b6d2"/>
+      <stop offset="0.48" stop-color="#e99abb"/>
+      <stop offset="1" stop-color="#9edcff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="#070b1d"/>
+
+  <path
+    fill="url(#m-gradient)"
+    d="M9 50V14h10l13 18 13-18h10v36H45V29.8L32 47 19 29.8V50H9Z"
+  />
+</svg>
