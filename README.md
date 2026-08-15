@@ -116,13 +116,22 @@ The function is located at:
 supabase/functions/tmdb/index.ts
 ```
 
-It supports two operations used by the browser:
+It supports four operations used by the browser:
 
 ```text
 catalog
 ```
 
 Returns popular, highly rated, new, and preference-based movies filtered to the group's streaming services.
+
+The same function also serves genre browsing: it returns a row for every TMDB movie genre and supports paginated genre-specific results for the full grid view.
+
+```text
+genres
+genre
+```
+
+Returns the genre overview rows and paginated movies for an individual genre.
 
 ```text
 details
@@ -256,7 +265,7 @@ Good next additions are:
 
 1. Friend requests with accept/reject instead of automatic friendship.
 2. Group invitations and membership acceptance.
-3. Pagination/infinite scrolling for TMDB catalog results.
+3. Infinite scrolling as an alternative to the genre grid's Load more button.
 4. A server-side recommendation endpoint if the ranking model becomes more complex.
 5. Region selection per account instead of a single `WATCH_REGION` setting.
 6. Provider-specific deep links where licensing/terms permit them.

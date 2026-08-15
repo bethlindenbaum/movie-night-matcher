@@ -51,6 +51,39 @@ async function fetchCatalog(services, preferredGenres) {
   };
 }
 
+async function fetchGenresCatalog(services) {
+  const data = await invokeTmdb({
+    action: "genres",
+    services,
+    region: window.APP_CONFIG.WATCH_REGION || "US"
+  });
+  return (data.genres || []).map(genre => ({
+    name: genre.name,
+    movies: (genre.movies || []).map(normalizeMovie).filter(Boolean).map(movie => {
+      if (!movie.genres.length) movie.genres = (movie.genreIds || []).map(id => data.genreMap?.[String(id)]).filter(Boolean);
+      return movie;
+    })
+  }));
+}
+
+async function fetchGenreMovies(genre, services, page = 1) {
+  const data = await invokeTmdb({
+    action: "genre",
+    genre,
+    services,
+    page,
+    region: window.APP_CONFIG.WATCH_REGION || "US"
+  });
+  return {
+    movies: (data.movies || []).map(normalizeMovie).filter(Boolean).map(movie => {
+      if (!movie.genres.length) movie.genres = (movie.genreIds || []).map(id => data.genreMap?.[String(id)]).filter(Boolean);
+      return movie;
+    }),
+    page: Number(data.page || page),
+    totalPages: Number(data.totalPages || 1)
+  };
+}
+
 async function fetchMovieDetails(movieId) {
   const id = Number(movieId);
   if (detailCache.has(id)) return detailCache.get(id);
