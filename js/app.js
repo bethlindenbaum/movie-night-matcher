@@ -222,7 +222,8 @@ function renderGenresPage() {
   $("#genres-hero-select-button").textContent = selected ? "✓ Selected" : "Select for group";
 }
 
-async function openGenreDetail(genre) {
+async function openGenreDetail(genre, addHistory = true) {
+  if (addHistory) history.pushState({ section: "genre-detail", genre }, "", `#genre=${encodeURIComponent(genre)}`);
   state.activeGenre = genre;
   state.genrePage = 0;
   state.genreTotalPages = 0;
@@ -444,7 +445,7 @@ function renderGroupsPage() {
   }).join("") : `<div class="empty-state">You do not have any groups yet. Add friends, then create a movie-night group.</div>`;
 
   $$(".use-group-button").forEach(button => button.addEventListener("click", async () => {
-    state.currentGroupId = button.dataset.groupId; subscribeToCurrentGroup(); renderAccountDependentUI(); showSection("home"); await loadCatalog();
+    state.currentGroupId = button.dataset.groupId; subscribeToCurrentGroup(); renderAccountDependentUI(); await navigateToSection("home"); await loadCatalog();
   }));
   $$(".edit-group-button").forEach(button => button.addEventListener("click", () => openEditGroupModal(button.dataset.groupId)));
 }
@@ -510,6 +511,12 @@ function showSection(section) {
   if (section === "my-list") renderMyList();
 }
 
+async function navigateToSection(section) {
+  if (state.activeSection !== section) history.pushState({ section }, "", section === "home" ? "#home" : `#${section}`);
+  showSection(section);
+  if (section === "genres") await loadGenresCatalog();
+}
+
 // UI events
 $$(".auth-tab").forEach(button => button.addEventListener("click", () => {
   $$(".auth-tab").forEach(tab => tab.classList.remove("active")); button.classList.add("active");
@@ -537,7 +544,7 @@ $("#friends-button").addEventListener("click", () => { renderFriends(); openDraw
 $("#refresh-button").addEventListener("click", async () => {
   await loadCatalog();
   if (state.activeSection === "genres") await loadGenresCatalog();
-  if (state.activeSection === "genre-detail" && state.activeGenre) await openGenreDetail(state.activeGenre);
+  if (state.activeSection === "genre-detail" && state.activeGenre) await openGenreDetail(state.activeGenre, false);
 });
 $("#save-profile-button").addEventListener("click", saveProfileSettings);
 $("#logout-button").addEventListener("click", async () => { await signOutAccount(); state.user = null; state.profile = null; state.groups = []; state.currentGroupId = null; showAuth(); });
@@ -582,7 +589,7 @@ $("#create-group-form").addEventListener("submit", async event => {
     if (editing) await updateBackendGroup(editing, $("#group-name").value, memberIds);
     else state.currentGroupId = await createBackendGroup($("#group-name").value, memberIds);
     state.groups = await listGroups(); closeModal("group-modal"); state.editingGroupId = null; subscribeToCurrentGroup(); renderAccountDependentUI();
-    if (!editing) showSection("home");
+    if (!editing) await navigateToSection("home");
     await loadCatalog(); showToast(editing ? "Group updated" : "Group created");
   } catch (error) { showToast(error.message); }
 });
@@ -606,16 +613,23 @@ $("#modal-select-button").addEventListener("click", () => toggleGroupSelection(s
 $$("[data-close-modal]").forEach(el => el.addEventListener("click", () => closeModal(el.dataset.closeModal)));
 $$("[data-close-drawer]").forEach(el => el.addEventListener("click", () => closeDrawer(el.dataset.closeDrawer)));
 $$(".nav-link").forEach(button => button.addEventListener("click", async () => {
-  showSection(button.dataset.section);
-  if (button.dataset.section === "genres") await loadGenresCatalog();
+  await navigateToSection(button.dataset.section);
 }));
-$("#home-link").addEventListener("click", event => { event.preventDefault(); showSection("home"); });
-$("#genre-back-button").addEventListener("click", () => showSection("genres"));
+$("#home-link").addEventListener("click", event => { event.preventDefault(); navigateToSection("home"); });
+$("#genre-back-button").addEventListener("click", () => history.back());
 genreLoadObserver.observe($("#genre-load-sentinel"));
 $("#genre-jump-top-button").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 window.addEventListener("scroll", () => {
   $("#genre-jump-top-button").classList.toggle("hidden", state.activeSection !== "genre-detail" || window.scrollY < 600);
 }, { passive: true });
+window.addEventListener("popstate", async event => {
+  const destination = event.state || { section: "home" };
+  if (destination.section === "genre-detail" && destination.genre) await openGenreDetail(destination.genre, false);
+  else {
+    showSection(destination.section || "home");
+    if (destination.section === "genres") await loadGenresCatalog();
+  }
+});
 document.addEventListener("keydown", event => { if (event.key === "Escape") { ["movie-modal","group-modal","match-modal"].forEach(closeModal); state.editingGroupId = null; ["profile-drawer","friends-drawer"].forEach(closeDrawer); } });
 
 (async function start() {
@@ -625,5 +639,8 @@ document.addEventListener("keydown", event => { if (event.key === "Escape") { ["
     $$("#login-form button, #signup-form button").forEach(button => button.disabled = true);
     return;
   }
-  try { await bootApp(); } catch (error) { console.error(error); showAuth(); $("#login-message").textContent = error.message; }
+  try {
+    await bootApp();
+    history.replaceState({ section: "home" }, "", "#home");
+  } catch (error) { console.error(error); showAuth(); $("#login-message").textContent = error.message; }
 })();
