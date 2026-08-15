@@ -361,6 +361,56 @@ select:focus {
   margin-top: 21px;
 }
 
+.genres-hero {
+  min-height: 62vh;
+}
+
+.genre-rows {
+  padding-top: 42px;
+}
+
+.view-all-button {
+  border: 0;
+  padding: 7px 0 7px 14px;
+  color: #f4b6d2;
+  background: transparent;
+  font-weight: 800;
+}
+
+.view-all-button:hover {
+  color: white;
+}
+
+.genre-back-button {
+  margin-bottom: 18px;
+  color: #f4b6d2;
+}
+
+.genre-load-sentinel {
+  padding: 42px 0 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.jump-top-button {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 40;
+  border: 1px solid rgba(244, 182, 210, .35);
+  border-radius: 999px;
+  padding: 12px 17px;
+  color: white;
+  background: rgba(23, 38, 76, .94);
+  box-shadow: 0 12px 32px rgba(1, 5, 25, .42);
+  backdrop-filter: blur(12px);
+}
+
+.jump-top-button:hover {
+  border-color: rgba(244, 182, 210, .7);
+  transform: translateY(-2px);
+}
+
 /* ---------------- GROUP STRIP ---------------- */
 
 .group-strip {

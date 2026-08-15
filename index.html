@@ -46,6 +46,7 @@
       <a class="brand brand-small" href="#" id="home-link">MOVIEMATCH</a>
       <nav class="desktop-nav">
         <button class="nav-link active" data-section="home">Home</button>
+        <button class="nav-link" data-section="genres">Genres</button>
         <button class="nav-link" data-section="my-list">My List</button>
         <button class="nav-link" data-section="groups">Groups</button>
       </nav>
@@ -91,6 +92,33 @@
         </section>
         <div id="catalog-status" class="catalog-status hidden">Loading movies…</div>
         <div id="movie-rows" class="movie-rows"></div>
+      </section>
+
+      <section id="genres-section" class="page-section hidden">
+        <section id="genres-hero" class="hero genres-hero">
+          <div class="hero-shade"></div>
+          <div class="hero-content">
+            <div class="eyebrow">Recommended for your group</div>
+            <h1 id="genres-hero-title">Browse by genre</h1>
+            <p id="genres-hero-description">Find the right movie for any mood.</p>
+            <div class="hero-meta" id="genres-hero-meta"></div>
+            <div class="hero-actions">
+              <button class="primary-button" id="genres-hero-details-button">View details</button>
+              <button class="secondary-button" id="genres-hero-select-button">Select for group</button>
+            </div>
+          </div>
+        </section>
+        <div id="genres-status" class="catalog-status hidden"></div>
+        <div id="genre-rows" class="movie-rows genre-rows"></div>
+      </section>
+
+      <section id="genre-detail-section" class="page-section content-page hidden">
+        <button class="text-button genre-back-button" id="genre-back-button">← All genres</button>
+        <div class="page-heading"><div><div class="eyebrow">Browse movies</div><h1 id="genre-detail-title">Genre</h1></div></div>
+        <div id="genre-detail-status" class="catalog-status hidden"></div>
+        <div id="genre-detail-grid" class="poster-grid"></div>
+        <div id="genre-load-sentinel" class="genre-load-sentinel hidden" aria-live="polite">Loading more movies…</div>
+        <button id="genre-jump-top-button" class="jump-top-button hidden" aria-label="Jump to the top of this genre">↑ Top</button>
       </section>
 
       <section id="my-list-section" class="page-section content-page hidden">

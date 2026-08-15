@@ -72,12 +72,8 @@ function cleanResults(payload: any) {
   return (payload.results || []).filter((m: any) => !m.adult && m.poster_path).slice(0, 20);
 }
 
-async function catalog(services: string[], preferredGenres: string[], region: string) {
-  const { providers, genres } = await getLookups(region);
-  const providerIds = providerIdsForServices(services, providers);
-  const preferredGenreIds = genreIdsForNames(preferredGenres, genres);
-
-  const common: Record<string, string | number | boolean | undefined> = {
+function discoverOptions(region: string, providerIds: number[]) {
+  return {
     language: "en-US",
     include_adult: false,
     include_video: false,
@@ -85,6 +81,50 @@ async function catalog(services: string[], preferredGenres: string[], region: st
     with_watch_monetization_types: "flatrate",
     with_watch_providers: providerIds.length ? providerIds.join("|") : undefined
   };
+}
+
+async function genresCatalog(services: string[], region: string) {
+  const { providers, genres } = await getLookups(region);
+  const common = discoverOptions(region, providerIdsForServices(services, providers));
+  const rows = await Promise.all(genres.map(async (genre: any) => {
+    const payload = await tmdb("/discover/movie", {
+      ...common,
+      with_genres: genre.id,
+      sort_by: "popularity.desc",
+      "vote_count.gte": 50
+    });
+    return { name: genre.name, movies: cleanResults(payload) };
+  }));
+  return {
+    genres: rows,
+    genreMap: Object.fromEntries(genres.map((genre: any) => [String(genre.id), genre.name]))
+  };
+}
+
+async function genreMovies(genreName: string, services: string[], region: string, page: number) {
+  const { providers, genres } = await getLookups(region);
+  const genreId = genreIdsForNames([genreName], genres)[0];
+  if (!genreId) throw new Error("Unknown genre");
+  const payload = await tmdb("/discover/movie", {
+    ...discoverOptions(region, providerIdsForServices(services, providers)),
+    with_genres: genreId,
+    sort_by: "popularity.desc",
+    page: Math.max(1, Math.min(Number(page) || 1, 500))
+  });
+  return {
+    movies: cleanResults(payload),
+    page: payload.page || 1,
+    totalPages: Math.min(Number(payload.total_pages || 1), 500),
+    genreMap: Object.fromEntries(genres.map((genre: any) => [String(genre.id), genre.name]))
+  };
+}
+
+async function catalog(services: string[], preferredGenres: string[], region: string) {
+  const { providers, genres } = await getLookups(region);
+  const providerIds = providerIdsForServices(services, providers);
+  const preferredGenreIds = genreIdsForNames(preferredGenres, genres);
+
+  const common: Record<string, string | number | boolean | undefined> = discoverOptions(region, providerIds);
 
   const now = new Date();
   const oneYearAgo = new Date(now);
@@ -138,6 +178,8 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const region = String(body.region || "US").toUpperCase();
     if (body.action === "catalog") return json(await catalog(body.services || [], body.preferredGenres || [], region));
+    if (body.action === "genres") return json(await genresCatalog(body.services || [], region));
+    if (body.action === "genre") return json(await genreMovies(String(body.genre || ""), body.services || [], region, Number(body.page || 1)));
     if (body.action === "details") return json(await details(Number(body.movieId), region));
     return json({ error: "Unknown action" }, 400);
   } catch (error) {

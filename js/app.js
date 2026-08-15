@@ -7,6 +7,12 @@ const state = {
   editingGroupId: null,
   myListIds: [],
   catalog: null,
+  genresCatalog: null,
+  activeGenre: null,
+  genrePage: 0,
+  genreTotalPages: 0,
+  genreMovies: [],
+  genreLoading: false,
   movies: new Map(),
   activeMovieId: null,
   activeSection: "home",
@@ -116,6 +122,7 @@ function renderAccountDependentUI() {
 
 async function loadCatalog() {
   const request = ++state.catalogRequest;
+  state.genresCatalog = null;
   setStatus("Loading movies from your group's streaming services…");
   try {
     const catalog = await fetchCatalog(availableServices(), preferredGenres());
@@ -169,6 +176,93 @@ function renderMovieRows() {
 
   $$(".movie-card").forEach(card => card.addEventListener("click", () => openMovie(Number(card.dataset.movieId))));
 }
+
+function bindMovieCards(container = document) {
+  container.querySelectorAll(".movie-card").forEach(card => card.addEventListener("click", () => openMovie(Number(card.dataset.movieId))));
+}
+
+async function loadGenresCatalog(force = false) {
+  if (state.genresCatalog && !force) return renderGenresPage();
+  const status = $("#genres-status");
+  status.textContent = "Loading genres…";
+  status.classList.remove("hidden");
+  try {
+    state.genresCatalog = await fetchGenresCatalog(availableServices());
+    state.genresCatalog.forEach(genre => rememberMovies(genre.movies));
+    renderGenresPage();
+    status.classList.add("hidden");
+  } catch (error) {
+    console.error(error);
+    status.textContent = `Could not load genres: ${error.message}`;
+  }
+}
+
+function renderGenresPage() {
+  if (!state.genresCatalog) return;
+  $("#genre-rows").innerHTML = state.genresCatalog.map(genre => `<section class="movie-row">
+    <div class="row-heading"><div><h2>${escapeHTML(genre.name)}</h2><span>Popular ${escapeHTML(genre.name.toLowerCase())} movies</span></div><button class="view-all-button" data-genre="${escapeHTML(genre.name)}">View all →</button></div>
+    <div class="horizontal-scroller">${genre.movies.map(movieCardHTML).join("")}</div>
+  </section>`).join("");
+  bindMovieCards($("#genre-rows"));
+  $$(".view-all-button").forEach(button => button.addEventListener("click", () => openGenreDetail(button.dataset.genre)));
+
+  const preferred = preferredGenres();
+  const featuredRow = state.genresCatalog.find(genre => preferred.includes(genre.name) && genre.movies.length) || state.genresCatalog.find(genre => genre.movies.length);
+  const movie = featuredRow?.movies[0];
+  if (!movie) return;
+  $("#genres-hero-title").textContent = movie.title;
+  $("#genres-hero-description").textContent = movie.description;
+  $("#genres-hero-meta").innerHTML = [movie.year, movie.rating ? `${movie.rating.toFixed(1)}/10` : null, (movie.genres || []).slice(0, 3).join(" • ")].filter(Boolean).map(value => `<span>${escapeHTML(value)}</span>`).join("<span>•</span>");
+  const backdrop = backdropURL(movie);
+  if (backdrop) $("#genres-hero").style.backgroundImage = `linear-gradient(to top, var(--bg) 0%, transparent 31%), linear-gradient(to right, rgba(0,0,0,.86), rgba(0,0,0,.08)), url('${backdrop}')`;
+  $("#genres-hero-details-button").onclick = () => openMovie(movie.id);
+  $("#genres-hero-select-button").onclick = () => toggleGroupSelection(movie.id);
+  const group = currentGroup();
+  const selected = group && (group.selections[state.profile.username] || []).map(Number).includes(Number(movie.id));
+  $("#genres-hero-select-button").textContent = selected ? "✓ Selected" : "Select for group";
+}
+
+async function openGenreDetail(genre) {
+  state.activeGenre = genre;
+  state.genrePage = 0;
+  state.genreTotalPages = 0;
+  state.genreMovies = [];
+  state.genreLoading = false;
+  $("#genre-detail-title").textContent = genre;
+  $("#genre-detail-grid").innerHTML = "";
+  showSection("genre-detail");
+  await loadNextGenrePage();
+}
+
+async function loadNextGenrePage() {
+  if (state.genreLoading || !state.activeGenre || (state.genrePage && state.genrePage >= state.genreTotalPages)) return;
+  const status = $("#genre-detail-status");
+  const sentinel = $("#genre-load-sentinel");
+  state.genreLoading = true;
+  status.textContent = `Loading ${state.activeGenre} movies…`;
+  status.classList.remove("hidden");
+  sentinel.classList.remove("hidden");
+  try {
+    const result = await fetchGenreMovies(state.activeGenre, availableServices(), state.genrePage + 1);
+    state.genrePage = result.page;
+    state.genreTotalPages = result.totalPages;
+    state.genreMovies = uniqueMovies([...state.genreMovies, ...result.movies]);
+    rememberMovies(result.movies);
+    $("#genre-detail-grid").innerHTML = state.genreMovies.map(movieCardHTML).join("");
+    bindMovieCards($("#genre-detail-grid"));
+    sentinel.classList.toggle("hidden", state.genrePage >= state.genreTotalPages);
+    status.classList.add("hidden");
+  } catch (error) {
+    console.error(error);
+    status.textContent = `Could not load movies: ${error.message}`;
+  } finally {
+    state.genreLoading = false;
+  }
+}
+
+const genreLoadObserver = new IntersectionObserver(entries => {
+  if (state.activeSection === "genre-detail" && entries.some(entry => entry.isIntersecting)) loadNextGenrePage();
+}, { rootMargin: "500px 0px" });
 
 function movieCardHTML(movie) {
   const group = currentGroup();
@@ -285,6 +379,11 @@ async function refreshGroupsOnly() {
   state.groups = await listGroups();
   renderGroupSelector(); renderGroupSummary(); renderGroupsPage();
   if (state.catalog) { renderMovieRows(); renderHero(); }
+  if (state.genresCatalog) renderGenresPage();
+  if (state.activeSection === "genre-detail") {
+    $("#genre-detail-grid").innerHTML = state.genreMovies.map(movieCardHTML).join("");
+    bindMovieCards($("#genre-detail-grid"));
+  }
   updateMovieModalButtons();
 }
 
@@ -404,8 +503,9 @@ function showNearMatch(movie, count, total) {
 
 function showSection(section) {
   state.activeSection = section;
-  ["home", "my-list", "groups"].forEach(name => $(`#${name}-section`).classList.toggle("hidden", name !== section));
-  $$(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.section === section));
+  $("#genre-jump-top-button").classList.toggle("hidden", section !== "genre-detail" || window.scrollY < 600);
+  ["home", "genres", "genre-detail", "my-list", "groups"].forEach(name => $(`#${name}-section`).classList.toggle("hidden", name !== section));
+  $$(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.section === (section === "genre-detail" ? "genres" : section)));
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (section === "my-list") renderMyList();
 }
@@ -434,7 +534,11 @@ $("#signup-form").addEventListener("submit", async event => {
 $("#group-select").addEventListener("change", async event => { state.currentGroupId = event.target.value || null; subscribeToCurrentGroup(); renderAccountDependentUI(); await loadCatalog(); });
 $("#profile-button").addEventListener("click", () => { renderProfileSettings(); openDrawer("profile-drawer"); });
 $("#friends-button").addEventListener("click", () => { renderFriends(); openDrawer("friends-drawer"); });
-$("#refresh-button").addEventListener("click", loadCatalog);
+$("#refresh-button").addEventListener("click", async () => {
+  await loadCatalog();
+  if (state.activeSection === "genres") await loadGenresCatalog();
+  if (state.activeSection === "genre-detail" && state.activeGenre) await openGenreDetail(state.activeGenre);
+});
 $("#save-profile-button").addEventListener("click", saveProfileSettings);
 $("#logout-button").addEventListener("click", async () => { await signOutAccount(); state.user = null; state.profile = null; state.groups = []; state.currentGroupId = null; showAuth(); });
 
@@ -501,8 +605,17 @@ $("#modal-list-button").addEventListener("click", () => toggleMyList(state.activ
 $("#modal-select-button").addEventListener("click", () => toggleGroupSelection(state.activeMovieId));
 $$("[data-close-modal]").forEach(el => el.addEventListener("click", () => closeModal(el.dataset.closeModal)));
 $$("[data-close-drawer]").forEach(el => el.addEventListener("click", () => closeDrawer(el.dataset.closeDrawer)));
-$$(".nav-link").forEach(button => button.addEventListener("click", () => showSection(button.dataset.section)));
+$$(".nav-link").forEach(button => button.addEventListener("click", async () => {
+  showSection(button.dataset.section);
+  if (button.dataset.section === "genres") await loadGenresCatalog();
+}));
 $("#home-link").addEventListener("click", event => { event.preventDefault(); showSection("home"); });
+$("#genre-back-button").addEventListener("click", () => showSection("genres"));
+genreLoadObserver.observe($("#genre-load-sentinel"));
+$("#genre-jump-top-button").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+window.addEventListener("scroll", () => {
+  $("#genre-jump-top-button").classList.toggle("hidden", state.activeSection !== "genre-detail" || window.scrollY < 600);
+}, { passive: true });
 document.addEventListener("keydown", event => { if (event.key === "Escape") { ["movie-modal","group-modal","match-modal"].forEach(closeModal); state.editingGroupId = null; ["profile-drawer","friends-drawer"].forEach(closeDrawer); } });
 
 (async function start() {
